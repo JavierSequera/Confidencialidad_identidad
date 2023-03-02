@@ -5,8 +5,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.nio.file.Files;
 import java.security.*;
-import java.security.spec.PKCS8EncodedKeySpec;
-import java.security.spec.X509EncodedKeySpec;
+import java.security.interfaces.RSAPublicKey;
 import java.util.Base64;
 
 public class Main {
@@ -31,22 +30,21 @@ public class Main {
         cipher = Cipher.getInstance("RSA");
         cipher.init(Cipher.ENCRYPT_MODE, emisorPrivateKey);
 
-        ByteArrayOutputStream encryptedOutputStream = new ByteArrayOutputStream();
-        byte[] buffer = new byte[100];
-        int readBytes = 0;
+        int tamanoBloque = (((RSAPublicKey)destinatarioPublicKey).getModulus().bitLength() + 7) / 8 - 11;
 
-        ByteArrayInputStream inputBytesStream = new ByteArrayInputStream(fileBytes);
+        // Inicializar buffer de salida
+        ByteArrayOutputStream bufferSalida = new ByteArrayOutputStream();
 
-        while ((readBytes = inputBytesStream.read(buffer)) != -1) {
-            byte[] encryptedBytes = cipher.doFinal(buffer, 0, readBytes);
-            encryptedOutputStream.write(encryptedBytes);
+        // Cifrar el contenido en bloques
+        int offset = 0;
+        while (offset < fileBytes.length) {
+            int tamanoBloqueActual = Math.min(tamanoBloque, fileBytes.length - offset);
+            byte[] bloqueCifrado = cipher.doFinal(fileBytes, offset, tamanoBloqueActual);
+            bufferSalida.write(bloqueCifrado);
+            offset += tamanoBloqueActual;
         }
 
-        byte[] encryptedBytes = encryptedOutputStream.toByteArray();
-
-        // Cifrar los datos cifrados previamente con la clave privada del emisor
-        cipher = Cipher.getInstance("RSA");
-        cipher.init(Cipher.ENCRYPT_MODE, emisorPrivateKey);
-        encryptedBytes = cipher.doFinal(encryptedBytes);
+        byte[] encryptedBytes = bufferSalida.toByteArray();
+        System.out.println(Base64.getEncoder().encodeToString(encryptedBytes));
     }
 }
